@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS chat_logs;
+DROP TABLE IF EXISTS bonus_logs;
+DROP TABLE IF EXISTS bookings;
+DROP TABLE IF EXISTS procedures;
+DROP TABLE IF EXISTS users;

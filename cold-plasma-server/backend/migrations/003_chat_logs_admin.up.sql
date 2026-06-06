@@ -1,0 +1,7 @@
+ALTER TABLE chat_logs
+    ADD COLUMN IF NOT EXISTS user_name TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS user_email TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS user_phone TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS intent TEXT NOT NULL DEFAULT '';
+
+CREATE INDEX IF NOT EXISTS idx_chat_logs_created_at ON chat_logs(created_at DESC);

@@ -1,0 +1,163 @@
+# Production-стек: запускается отдельно от dev docker-compose.yml.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Отличия от dev:
+#   - нет MailHog (используется реальный SMTP);
+#   - порты db/api/web НЕ публикуются наружу — наружу смотрит только Caddy (80/443);
+#   - Caddy автоматически получает и продлевает Let's Encrypt-сертификат для $SITE_DOMAIN;
+#   - APP_ENV=production включает fail-fast на слабых секретах (см. config.Validate).
+#
+# Все секреты берутся из .env (см. .env.prod.example).
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set a strong DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:-cold_plasma}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-cold_plasma}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/migrations:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://${DB_USER:-postgres}:${DB_PASSWORD}@db:5432/${DB_NAME:-cold_plasma}?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      APP_ENV: production
+      PORT: 8080
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?set a strong DB_PASSWORD in .env}
+      DB_NAME: ${DB_NAME:-cold_plasma}
+      DB_SSLMODE: disable
+      JWT_SECRET: ${JWT_SECRET:?set a strong JWT_SECRET in .env}
+      JWT_EXPIRY: ${JWT_EXPIRY:-86400}
+      CHAT_LOG_ENCRYPTION_KEY: ${CHAT_LOG_ENCRYPTION_KEY:?set CHAT_LOG_ENCRYPTION_KEY (must differ from JWT_SECRET)}
+      PHONE_CODE_TTL_SECONDS: ${PHONE_CODE_TTL_SECONDS:-300}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?set CORS_ALLOWED_ORIGINS=https://your-domain}
+
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3-flash-preview}
+      GEMINI_FALLBACK_MODELS: ${GEMINI_FALLBACK_MODELS:-gemini-3-flash-preview,gemini-2.5-flash,gemini-3.1-flash-lite}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com}
+
+      SALON_NAME: ${SALON_NAME:-Холодная плазма}
+      SALON_ADDRESS: ${SALON_ADDRESS:-}
+      SALON_WORK_HOURS: ${SALON_WORK_HOURS:-Ежедневно 10:00–20:00}
+      SALON_DIRECTIONS: ${SALON_DIRECTIONS:-}
+      SALON_PARKING: ${SALON_PARKING:-}
+      SALON_POPULAR_FAQ: ${SALON_POPULAR_FAQ:-}
+
+      PDF_FONT_PATH: ./assets/fonts/Roboto-Regular.ttf
+
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL=https://your-domain}
+      EMAIL_VERIFY_SECRET: ${EMAIL_VERIFY_SECRET:-}
+      EMAIL_VERIFY_EXPIRY: ${EMAIL_VERIFY_EXPIRY:-86400}
+
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Холодная плазма}
+      SMTP_IMPLICIT_TLS: ${SMTP_IMPLICIT_TLS:-false}
+      SMTP_TLS_INSECURE: ${SMTP_TLS_INSECURE:-false}
+
+      SMS_PROVIDER: ${SMS_PROVIDER:-log}
+      SMS_HTTP_URL: ${SMS_HTTP_URL:-}
+      SMS_HTTP_TOKEN: ${SMS_HTTP_TOKEN:-}
+      SMS_FROM: ${SMS_FROM:-cold_plasma}
+
+      VK_CLIENT_ID: ${VK_CLIENT_ID:-}
+      VK_CLIENT_SECRET: ${VK_CLIENT_SECRET:-}
+      VK_REDIRECT_URI: ${VK_REDIRECT_URI:-}
+
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
+      TELEGRAM_ADMIN_REMINDER_MESSAGE_THREAD_ID: ${TELEGRAM_ADMIN_REMINDER_MESSAGE_THREAD_ID:-}
+      TELEGRAM_REVENUE_CHAT_ID: ${TELEGRAM_REVENUE_CHAT_ID:-}
+      TELEGRAM_REVENUE_MESSAGE_THREAD_ID: ${TELEGRAM_REVENUE_MESSAGE_THREAD_ID:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      UPLOAD_DIR: /app/uploads
+
+      # Прокси для обхода блокировок РФ (Telegram Bot API + AI)
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      http_proxy: ${HTTP_PROXY:-}
+      https_proxy: ${HTTPS_PROXY:-}
+      NO_PROXY: db,localhost,127.0.0.1
+      no_proxy: db,localhost,127.0.0.1
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+        VITE_VK_CLIENT_ID: ${VITE_VK_CLIENT_ID:-}
+        VITE_VK_REDIRECT_URI: ${VITE_VK_REDIRECT_URI:-}
+        VITE_YM_ID: ${VITE_YM_ID:-}
+        VITE_GA_ID: ${VITE_GA_ID:-}
+    depends_on:
+      - api
+    volumes:
+      - uploads_data:/usr/share/nginx/html/uploads:ro
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?set SITE_DOMAIN=your-domain in .env}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  uploads_data:
+  caddy_data:
+  caddy_config:

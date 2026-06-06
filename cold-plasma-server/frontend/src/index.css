@@ -1,0 +1,191 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  
+  body {
+    background-color: #f7f7f4;
+    color: #111111;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Custom Premium Scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f1f1ee;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #c8c8c2;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #a6a69f;
+  }
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  box-shadow: 0 22px 70px rgba(17, 24, 39, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  box-shadow: 0 14px 42px rgba(17, 24, 39, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.74);
+}
+
+.mono-lava-background {
+  opacity: 0.88;
+  filter: blur(26px) saturate(0);
+  mix-blend-mode: multiply;
+}
+
+.mono-lava-background::before,
+.mono-lava-background::after {
+  position: absolute;
+  inset: -12%;
+  content: "";
+  background-repeat: no-repeat;
+  will-change: transform, background-position, background-size;
+}
+
+.mono-lava-background::before {
+  background-image:
+    radial-gradient(ellipse at 18% 36%, rgba(0, 0, 0, 0.28) 0 12%, rgba(0, 0, 0, 0.14) 22%, transparent 45%),
+    radial-gradient(ellipse at 66% 24%, rgba(0, 0, 0, 0.2) 0 10%, rgba(0, 0, 0, 0.1) 20%, transparent 42%),
+    radial-gradient(ellipse at 86% 66%, rgba(0, 0, 0, 0.26) 0 11%, rgba(0, 0, 0, 0.12) 22%, transparent 44%),
+    radial-gradient(ellipse at 38% 84%, rgba(0, 0, 0, 0.18) 0 10%, rgba(0, 0, 0, 0.08) 21%, transparent 42%);
+  background-size: 64% 70%, 58% 64%, 66% 74%, 58% 66%;
+  background-position: -12% 18%, 58% -12%, 72% 48%, 18% 82%;
+  animation: monochrome-lava-flow 28s ease-in-out infinite alternate;
+}
+
+.mono-lava-background::after {
+  background-image:
+    radial-gradient(ellipse at 50% 44%, rgba(0, 0, 0, 0.16) 0 13%, rgba(0, 0, 0, 0.08) 24%, transparent 46%),
+    radial-gradient(ellipse at 8% 72%, rgba(0, 0, 0, 0.2) 0 11%, rgba(0, 0, 0, 0.09) 23%, transparent 45%),
+    radial-gradient(ellipse at 66% 92%, rgba(0, 0, 0, 0.14) 0 10%, rgba(0, 0, 0, 0.07) 22%, transparent 42%),
+    radial-gradient(ellipse at 100% 10%, rgba(0, 0, 0, 0.16) 0 9%, rgba(0, 0, 0, 0.08) 20%, transparent 40%);
+  background-size: 68% 76%, 62% 70%, 66% 74%, 54% 62%;
+  background-position: 36% 24%, -18% 62%, 52% 98%, 92% -8%;
+  animation: monochrome-lava-flow-secondary 34s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes monochrome-lava-flow {
+  0% {
+    transform: translate3d(-1%, -1%, 0) rotate(-1deg) scale(1);
+    background-size: 64% 70%, 58% 64%, 66% 74%, 58% 66%;
+    background-position: -12% 18%, 58% -12%, 72% 48%, 18% 82%;
+  }
+  50% {
+    transform: translate3d(1.5%, 1%, 0) rotate(1.5deg) scale(1.03);
+    background-size: 74% 82%, 50% 60%, 58% 68%, 70% 76%;
+    background-position: 8% 28%, 74% 4%, 86% 56%, 0% 70%;
+  }
+  100% {
+    transform: translate3d(2%, -0.5%, 0) rotate(-0.6deg) scale(1.015);
+    background-size: 56% 66%, 70% 78%, 76% 84%, 54% 64%;
+    background-position: 26% 4%, 86% 14%, 58% 72%, 32% 96%;
+  }
+}
+
+@keyframes monochrome-lava-flow-secondary {
+  0% {
+    transform: translate3d(1%, 0.5%, 0) rotate(1deg) scale(1.02);
+    background-size: 68% 76%, 62% 70%, 66% 74%, 54% 62%;
+    background-position: 36% 24%, -18% 62%, 52% 98%, 92% -8%;
+  }
+  50% {
+    transform: translate3d(-1.5%, 1.25%, 0) rotate(-1.2deg) scale(1.04);
+    background-size: 58% 68%, 74% 82%, 58% 68%, 66% 72%;
+    background-position: 50% 10%, 6% 76%, 72% 86%, 78% 10%;
+  }
+  100% {
+    transform: translate3d(-0.5%, -1%, 0) rotate(0.5deg) scale(1.01);
+    background-size: 76% 84%, 58% 66%, 72% 80%, 48% 58%;
+    background-position: 26% 34%, -12% 48%, 44% 104%, 104% 18%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mono-lava-background::before,
+  .mono-lava-background::after {
+    animation: none;
+  }
+}
+
+.silver-glow {
+  text-shadow: 0 10px 40px rgba(17, 24, 39, 0.08);
+}
+
+.text-white,
+.text-zinc-100,
+.text-zinc-200 {
+  color: #111827 !important;
+}
+
+.text-zinc-300 {
+  color: #374151 !important;
+}
+
+.text-zinc-400 {
+  color: #4b5563 !important;
+}
+
+.text-zinc-500 {
+  color: #6b7280 !important;
+}
+
+.text-zinc-600 {
+  color: #9ca3af !important;
+}
+
+.border-white\/5,
+.border-white\/10,
+.border-white\/15,
+.border-white\/20 {
+  border-color: rgba(17, 24, 39, 0.12) !important;
+}
+
+.bg-zinc-950 {
+  background-color: #ffffff !important;
+}
+
+.bg-zinc-900 {
+  background-color: #ffffff !important;
+}
+
+.bg-white\/5,
+.bg-white\/10 {
+  background-color: rgba(17, 24, 39, 0.04) !important;
+}
+
+.bg-white\/\[0\.02\],
+.bg-white\/\[0\.03\],
+.bg-white\/\[0\.05\] {
+  background-color: rgba(17, 24, 39, 0.035) !important;
+}
+
+.bg-black,
+.bg-black.text-white,
+.bg-zinc-900.text-white,
+.bg-black .text-white,
+.bg-zinc-900 .text-white {
+  color: #ffffff !important;
+}
+
+.placeholder\:text-zinc-600::placeholder {
+  color: #9ca3af !important;
+}

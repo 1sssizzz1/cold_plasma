@@ -1,0 +1,136 @@
+services:
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "${MAILHOG_UI_PORT:-8025}:8025"
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-cold_plasma}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    # Порт БД доступен только с localhost хоста (для отладки),
+    # а не на всех интерфейсах. В проде лучше убрать публикацию совсем —
+    # сервисы внутри сети обращаются к db:5432 напрямую.
+    ports:
+      - "127.0.0.1:${DB_PUBLIC_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-cold_plasma}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    image: migrate/migrate:v4.17.0
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/migrations:/migrations:ro
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-cold_plasma}?sslmode=disable",
+        "up"
+      ]
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      PORT: 8080
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-cold_plasma}
+      DB_SSLMODE: disable
+      # Обязателен и не имеет дефолта: при APP_ENV=production пустой/слабый секрет
+      # приведёт к падению на старте (см. config.Validate).
+      JWT_SECRET: ${JWT_SECRET:?set a strong JWT_SECRET in .env}
+      JWT_EXPIRY: ${JWT_EXPIRY:-86400}
+      CHAT_LOG_ENCRYPTION_KEY: ${CHAT_LOG_ENCRYPTION_KEY:-}
+      PHONE_CODE_TTL_SECONDS: ${PHONE_CODE_TTL_SECONDS:-300}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8081}
+
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3-flash-preview}
+      GEMINI_FALLBACK_MODELS: ${GEMINI_FALLBACK_MODELS:-gemini-3-flash-preview,gemini-2.5-flash,gemini-3.1-flash-lite}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com}
+
+      SALON_NAME: ${SALON_NAME:-Холодная плазма}
+      SALON_ADDRESS: ${SALON_ADDRESS:-г. Северодвинск, (укажите адрес в .env)}
+      SALON_WORK_HOURS: ${SALON_WORK_HOURS:-Ежедневно 10:00–20:00}
+      SALON_DIRECTIONS: ${SALON_DIRECTIONS:-Укажите, как добраться (в .env).}
+      SALON_PARKING: ${SALON_PARKING:-Укажите парковку (в .env).}
+      SALON_POPULAR_FAQ: ${SALON_POPULAR_FAQ:-}
+
+      PDF_FONT_PATH: ./assets/fonts/Roboto-Regular.ttf
+
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8081}
+      EMAIL_VERIFY_SECRET: ${EMAIL_VERIFY_SECRET:-}
+      EMAIL_VERIFY_EXPIRY: ${EMAIL_VERIFY_EXPIRY:-86400}
+
+      # По умолчанию в docker используем MailHog для тестов; для продакшена задайте реальные SMTP_* в .env
+      SMTP_HOST: ${SMTP_HOST:-mailhog}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@coldplasma.local}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Холодная плазма}
+      SMTP_IMPLICIT_TLS: ${SMTP_IMPLICIT_TLS:-false}
+      SMTP_TLS_INSECURE: ${SMTP_TLS_INSECURE:-false}
+      SMS_PROVIDER: ${SMS_PROVIDER:-log}
+      SMS_HTTP_URL: ${SMS_HTTP_URL:-}
+      SMS_HTTP_TOKEN: ${SMS_HTTP_TOKEN:-}
+      SMS_FROM: ${SMS_FROM:-cold_plasma}
+      VK_CLIENT_ID: ${VK_CLIENT_ID:-}
+      VK_CLIENT_SECRET: ${VK_CLIENT_SECRET:-}
+      VK_REDIRECT_URI: ${VK_REDIRECT_URI:-http://localhost:8081/account}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
+      TELEGRAM_ADMIN_REMINDER_MESSAGE_THREAD_ID: ${TELEGRAM_ADMIN_REMINDER_MESSAGE_THREAD_ID:-18}
+      TELEGRAM_REVENUE_CHAT_ID: ${TELEGRAM_REVENUE_CHAT_ID:-}
+      TELEGRAM_REVENUE_MESSAGE_THREAD_ID: ${TELEGRAM_REVENUE_MESSAGE_THREAD_ID:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${API_PORT:-8080}:8080"
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+        VITE_VK_CLIENT_ID: ${VITE_VK_CLIENT_ID:-}
+        VITE_VK_REDIRECT_URI: ${VITE_VK_REDIRECT_URI:-http://localhost:8081/account}
+        VITE_YM_ID: ${VITE_YM_ID:-}
+        VITE_GA_ID: ${VITE_GA_ID:-}
+    depends_on:
+      - api
+    volumes:
+      - uploads_data:/usr/share/nginx/html/uploads:ro
+    ports:
+      - "${WEB_PORT:-8081}:80"
+
+volumes:
+  db_data:
+  uploads_data:

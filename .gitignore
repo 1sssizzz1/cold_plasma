@@ -1,0 +1,22 @@
+.env
+.continueignore
+.env.*
+!.env.example
+!.env.prod.example
+
+# Go
+**/bin/
+**/*.exe
+**/*.out
+**/*.test
+
+# Node
+**/node_modules/
+**/dist/
+**/.vite/
+**/npm-debug.log
+
+# OS
+.DS_Store
+Thumbs.db
+
