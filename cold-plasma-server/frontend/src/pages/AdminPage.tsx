@@ -4,9 +4,10 @@ import Container from '../components/Container'
 import MotionPage from '../components/MotionPage'
 import { apiDelete, apiGet, apiPost, apiPut, apiUpload } from '../utils/api'
 import { useAuthStore } from '../store/auth'
+import AdminCalendar from '../components/admin/AdminCalendar'
 import type { BeforeAfterResult, Procedure, ProcedureReview, User } from '../types'
 
-type AdminSectionId = 'bookings' | 'procedures' | 'beforeAfter' | 'master' | 'ai' | 'bonus' | 'notifications'
+type AdminSectionId = 'bookings' | 'calendar' | 'procedures' | 'beforeAfter' | 'master' | 'ai' | 'bonus' | 'notifications'
 type BookingTabId = 'requests' | 'active' | 'completed'
 
 type NotificationSettings = {
@@ -66,6 +67,7 @@ type MasterProfile = {
 
 const adminSections: Array<{ id: AdminSectionId; label: string; description: string }> = [
   { id: 'bookings', label: 'Записи', description: 'Заявки, активные и завершённые записи' },
+  { id: 'calendar', label: 'Календарь', description: 'Записи и заметки на месяц' },
   { id: 'procedures', label: 'Процедуры', description: 'Каталог, медиа и отзывы' },
   { id: 'beforeAfter', label: 'До/После', description: 'Результаты процедур, превью и публикация' },
   { id: 'master', label: 'Мастер', description: 'Биография, фото и сертификаты' },
@@ -315,7 +317,7 @@ export default function AdminPage() {
           </div>
 
           <div className="mt-4 rounded-2xl border border-black/10 p-4">
-            <div className="text-xs text-black/45">Варианты клиента</div>
+            <div className="text-xs text-black/45">Выбранное окно клиента</div>
             <div className="mt-2 flex flex-wrap gap-2">
               {(booking.requested_datetimes.length ? booking.requested_datetimes : [booking.datetime]).map((date) => (
                 <button
@@ -332,6 +334,9 @@ export default function AdminPage() {
                 </button>
               ))}
             </div>
+            {mode === 'requests' && (
+              <div className="mt-2 text-xs text-black/45">Нажмите на окно, чтобы подтвердить запись на это время.</div>
+            )}
           </div>
 
           <div className="mt-4 rounded-2xl border border-black/10 bg-black/[0.02] p-4 text-sm text-black/70">
@@ -1202,6 +1207,7 @@ export default function AdminPage() {
 
   const renderCurrentSection = () => {
     if (section === 'bookings') return renderBookings()
+    if (section === 'calendar') return <AdminCalendar />
     if (section === 'procedures') return renderProcedures()
     if (section === 'beforeAfter') return renderBeforeAfter()
     if (section === 'master') return renderMaster()
@@ -1236,7 +1242,7 @@ export default function AdminPage() {
             </button>
           </div>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
             {adminSections.map((item) => (
               <button
                 key={item.id}

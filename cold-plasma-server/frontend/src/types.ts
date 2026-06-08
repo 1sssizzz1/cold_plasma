@@ -78,6 +78,43 @@ export type Booking = {
   created_at: string
 }
 
+export type Slot = {
+  start_at: string
+  end_at: string
+}
+
+export type DaySlots = {
+  date: string
+  slots: Slot[]
+}
+
+export type AdminNote = {
+  id: number
+  start_at: string
+  end_at: string
+  title: string
+  created_at: string
+}
+
+export type CalendarBooking = {
+  id: number
+  user_name: string
+  user_phone: string
+  procedure_id: number
+  procedure_title: string
+  duration_mins: number
+  start_at: string
+  end_at: string
+  status: string
+}
+
+export type CalendarData = {
+  from: string
+  to: string
+  bookings: CalendarBooking[]
+  notes: AdminNote[]
+}
+
 export type BonusLog = {
   id: number
   user_id: number

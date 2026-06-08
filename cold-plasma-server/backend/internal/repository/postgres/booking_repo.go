@@ -127,6 +127,45 @@ func (r *BookingRepo) ListAdmin(ctx context.Context, statuses []string, limit in
 	return out, nil
 }
 
+func (r *BookingRepo) ListCalendar(ctx context.Context, from, to time.Time, statuses []string) ([]models.CalendarBooking, error) {
+	if len(statuses) == 0 {
+		statuses = []string{"new", "confirmed", "completed"}
+	}
+	const q = `
+		SELECT b.id, u.name, u.phone, b.procedure_id, p.title, p.duration_mins, b.datetime, b.status
+		FROM bookings b
+		JOIN users u ON u.id = b.user_id
+		JOIN procedures p ON p.id = b.procedure_id
+		WHERE b.status = ANY($3)
+		  AND b.datetime < $2
+		  AND b.datetime + make_interval(mins => GREATEST(p.duration_mins, 1)) > $1
+		ORDER BY b.datetime ASC
+	`
+	rows, err := r.db.Query(ctx, q, from, to, statuses)
+	if err != nil {
+		return nil, fmt.Errorf("list calendar bookings: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]models.CalendarBooking, 0)
+	for rows.Next() {
+		var b models.CalendarBooking
+		if err := rows.Scan(&b.ID, &b.UserName, &b.UserPhone, &b.ProcedureID, &b.ProcedureTitle, &b.DurationMins, &b.StartAt, &b.Status); err != nil {
+			return nil, fmt.Errorf("scan calendar booking: %w", err)
+		}
+		mins := b.DurationMins
+		if mins < 1 {
+			mins = 1
+		}
+		b.EndAt = b.StartAt.Add(time.Duration(mins) * time.Minute)
+		out = append(out, b)
+	}
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("list calendar bookings: %w", rows.Err())
+	}
+	return out, nil
+}
+
 func (r *BookingRepo) UpdateStatusDateTime(ctx context.Context, bookingID int64, status string, dateTime time.Time) error {
 	const q = `UPDATE bookings SET status = $2, datetime = $3 WHERE id = $1`
 	ct, err := r.db.Exec(ctx, q, bookingID, status, dateTime)

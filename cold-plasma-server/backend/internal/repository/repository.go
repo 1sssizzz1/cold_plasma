@@ -124,6 +124,7 @@ type BookingRepository interface {
 	Create(ctx context.Context, b CreateBookingParams) (models.Booking, error)
 	ListByUserID(ctx context.Context, userID int64) ([]models.Booking, error)
 	ListAdmin(ctx context.Context, statuses []string, limit int) ([]models.AdminBooking, error)
+	ListCalendar(ctx context.Context, from, to time.Time, statuses []string) ([]models.CalendarBooking, error)
 	UpdateStatusDateTime(ctx context.Context, bookingID int64, status string, dateTime time.Time) error
 	Delete(ctx context.Context, bookingID int64) error
 	MonthlyRevenue(ctx context.Context, from, to time.Time) (models.MonthlyRevenue, error)
@@ -144,6 +145,18 @@ type CreateBookingParams struct {
 	BonusUsed      int
 	NotifySMS      bool
 	NotifyTelegram bool
+}
+
+type AdminNoteRepository interface {
+	Create(ctx context.Context, p CreateAdminNoteParams) (models.AdminNote, error)
+	ListBetween(ctx context.Context, from, to time.Time) ([]models.AdminNote, error)
+	Delete(ctx context.Context, id int64) error
+}
+
+type CreateAdminNoteParams struct {
+	StartAt time.Time
+	EndAt   time.Time
+	Title   string
 }
 
 type BonusRepository interface {

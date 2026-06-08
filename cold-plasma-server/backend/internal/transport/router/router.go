@@ -84,6 +84,7 @@ func New(cfg *config.Config, h Handlers) *gin.Engine {
 
 	auth.POST("/bookings", h.Bookings.Create)
 	auth.GET("/bookings", h.Bookings.ListMy)
+	auth.GET("/bookings/availability", h.Bookings.Availability)
 
 	auth.GET("/bonus/balance", h.Bonus.Balance)
 	auth.GET("/bonus/logs", h.Bonus.Logs)
@@ -122,6 +123,9 @@ func New(cfg *config.Config, h Handlers) *gin.Engine {
 	admin.POST("/bookings/:id/complete", h.Admin.CompleteBooking)
 	admin.POST("/bookings/:id/reschedule", h.Admin.RescheduleBooking)
 	admin.DELETE("/bookings/:id", h.Admin.DeleteBooking)
+	admin.GET("/calendar", h.Admin.Calendar)
+	admin.POST("/notes", h.Admin.CreateNote)
+	admin.DELETE("/notes/:id", h.Admin.DeleteNote)
 
 	return r
 }

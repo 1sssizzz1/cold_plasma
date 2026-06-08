@@ -140,6 +140,64 @@ func (h *AdminHandler) DeleteBooking(c *gin.Context) {
 	ok(c, gin.H{"ok": true})
 }
 
+func (h *AdminHandler) Calendar(c *gin.Context) {
+	from, err := time.Parse(time.RFC3339, c.Query("from"))
+	if err != nil {
+		fail(c, 400, "Некорректная дата from (RFC3339)")
+		return
+	}
+	to, err := time.Parse(time.RFC3339, c.Query("to"))
+	if err != nil {
+		fail(c, 400, "Некорректная дата to (RFC3339)")
+		return
+	}
+	data, err := h.admin.Calendar(c.Request.Context(), from, to)
+	if err != nil {
+		handleServiceErr(c, err)
+		return
+	}
+	ok(c, data)
+}
+
+type createNoteReq struct {
+	StartAt string `json:"start_at"`
+	EndAt   string `json:"end_at"`
+	Title   string `json:"title"`
+}
+
+func (h *AdminHandler) CreateNote(c *gin.Context) {
+	var req createNoteReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		fail(c, 400, "Некорректный JSON")
+		return
+	}
+	startAt, err := time.Parse(time.RFC3339, req.StartAt)
+	if err != nil {
+		fail(c, 400, "Некорректная дата начала (RFC3339)")
+		return
+	}
+	endAt, err := time.Parse(time.RFC3339, req.EndAt)
+	if err != nil {
+		fail(c, 400, "Некорректная дата конца (RFC3339)")
+		return
+	}
+	note, err := h.admin.CreateNote(c.Request.Context(), startAt, endAt, req.Title)
+	if err != nil {
+		handleServiceErr(c, err)
+		return
+	}
+	created(c, gin.H{"note": note})
+}
+
+func (h *AdminHandler) DeleteNote(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err := h.admin.DeleteNote(c.Request.Context(), id); err != nil {
+		handleServiceErr(c, err)
+		return
+	}
+	ok(c, gin.H{"ok": true})
+}
+
 func (h *AdminHandler) NotificationSettings(c *gin.Context) {
 	settings, err := h.admin.NotificationSettings(c.Request.Context())
 	if err != nil {

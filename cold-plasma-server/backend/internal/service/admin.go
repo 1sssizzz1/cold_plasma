@@ -17,11 +17,12 @@ import (
 const aiChatRetention = 30 * 24 * time.Hour
 
 type AdminService struct {
-	chats    repository.ChatRepository
-	bookings repository.BookingRepository
-	settings repository.SettingsRepository
-	notifier AdminBookingNotifier
-	crypto   *security.TextCipher
+	chats      repository.ChatRepository
+	bookings   repository.BookingRepository
+	adminNotes repository.AdminNoteRepository
+	settings   repository.SettingsRepository
+	notifier   AdminBookingNotifier
+	crypto     *security.TextCipher
 }
 
 type AdminBookingNotifier interface {
@@ -30,8 +31,8 @@ type AdminBookingNotifier interface {
 	NotifyUserBookingCompleted(ctx context.Context, booking models.Booking)
 }
 
-func NewAdminService(chats repository.ChatRepository, bookings repository.BookingRepository, settings repository.SettingsRepository, notifier AdminBookingNotifier, crypto *security.TextCipher) *AdminService {
-	return &AdminService{chats: chats, bookings: bookings, settings: settings, notifier: notifier, crypto: crypto}
+func NewAdminService(chats repository.ChatRepository, bookings repository.BookingRepository, adminNotes repository.AdminNoteRepository, settings repository.SettingsRepository, notifier AdminBookingNotifier, crypto *security.TextCipher) *AdminService {
+	return &AdminService{chats: chats, bookings: bookings, adminNotes: adminNotes, settings: settings, notifier: notifier, crypto: crypto}
 }
 
 func (s *AdminService) ChatLogs(ctx context.Context, limit int) ([]models.ChatLog, error) {
@@ -135,6 +136,60 @@ func (s *AdminService) ActiveBookings(ctx context.Context) ([]models.AdminBookin
 
 func (s *AdminService) CompletedBookings(ctx context.Context) ([]models.AdminBooking, error) {
 	return s.bookings.ListAdmin(ctx, []string{"completed"}, 200)
+}
+
+// CalendarData — данные календаря администратора за период.
+type CalendarData struct {
+	From     time.Time                `json:"from"`
+	To       time.Time                `json:"to"`
+	Bookings []models.CalendarBooking `json:"bookings"`
+	Notes    []models.AdminNote       `json:"notes"`
+}
+
+// Calendar возвращает записи и заметки администратора, пересекающие [from, to).
+func (s *AdminService) Calendar(ctx context.Context, from, to time.Time) (CalendarData, error) {
+	loc := salonLocation()
+	from = from.In(loc)
+	to = to.In(loc)
+	if !to.After(from) {
+		return CalendarData{}, fmt.Errorf("некорректный диапазон дат: %w", ErrValidation)
+	}
+	bookings, err := s.bookings.ListCalendar(ctx, from, to, []string{"new", "confirmed", "completed"})
+	if err != nil {
+		return CalendarData{}, err
+	}
+	notes, err := s.adminNotes.ListBetween(ctx, from, to)
+	if err != nil {
+		return CalendarData{}, err
+	}
+	return CalendarData{From: from, To: to, Bookings: bookings, Notes: notes}, nil
+}
+
+func (s *AdminService) CreateNote(ctx context.Context, startAt, endAt time.Time, title string) (models.AdminNote, error) {
+	title = strings.TrimSpace(title)
+	if startAt.IsZero() || endAt.IsZero() {
+		return models.AdminNote{}, fmt.Errorf("укажите время начала и конца: %w", ErrValidation)
+	}
+	loc := salonLocation()
+	startAt = startAt.In(loc)
+	endAt = endAt.In(loc)
+	if !endAt.After(startAt) {
+		return models.AdminNote{}, fmt.Errorf("конец должен быть позже начала: %w", ErrValidation)
+	}
+	return s.adminNotes.Create(ctx, repository.CreateAdminNoteParams{StartAt: startAt, EndAt: endAt, Title: title})
+}
+
+func (s *AdminService) DeleteNote(ctx context.Context, id int64) error {
+	if id <= 0 {
+		return fmt.Errorf("id обязателен: %w", ErrValidation)
+	}
+	if err := s.adminNotes.Delete(ctx, id); err != nil {
+		if errors.Is(err, models.ErrNotFound) {
+			return se(ErrNotFound, "Заметка не найдена")
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *AdminService) ConfirmBooking(ctx context.Context, bookingID int64, dateTime time.Time) error {

@@ -45,6 +45,7 @@ func main() {
 	procedureReviewRepo := postgres.NewProcedureReviewRepo(pool)
 	beforeAfterRepo := postgres.NewBeforeAfterRepo(pool)
 	bookingRepo := postgres.NewBookingRepo(pool)
+	adminNoteRepo := postgres.NewAdminNoteRepo(pool)
 	bonusRepo := postgres.NewBonusRepo(pool)
 	chatRepo := postgres.NewChatRepo(pool)
 	settingsRepo := postgres.NewSettingsRepo(pool)
@@ -98,12 +99,12 @@ func main() {
 	)
 	procedureSvc := service.NewProcedureService(procedureRepo, procedureReviewRepo)
 	beforeAfterSvc := service.NewBeforeAfterService(beforeAfterRepo)
-	bookingSvc := service.NewBookingService(procedureRepo, bookingRepo, txManager, telegramSvc)
+	bookingSvc := service.NewBookingService(procedureRepo, bookingRepo, adminNoteRepo, txManager, telegramSvc)
 	bonusSvc := service.NewBonusService(userRepo, bonusRepo, txManager)
 	chatSvc := service.NewChatService(cfg, ai.NewProvider(cfg), chatRepo, userRepo, chatLogCrypto)
 	pdfSvc := service.NewPDFService(cfg)
 	uploadSvc := service.NewUploadService(cfg.UploadDir)
-	adminSvc := service.NewAdminService(chatRepo, bookingRepo, settingsRepo, telegramSvc, chatLogCrypto)
+	adminSvc := service.NewAdminService(chatRepo, bookingRepo, adminNoteRepo, settingsRepo, telegramSvc, chatLogCrypto)
 
 	// Handlers
 	r := router.New(cfg, router.Handlers{

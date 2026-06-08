@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,13 +23,12 @@ func NewBookingHandler(bookings *service.BookingService) *BookingHandler {
 }
 
 type createBookingReq struct {
-	ProcedureID    int64    `json:"procedure_id"`
-	DateTime       string   `json:"datetime"`  // legacy RFC3339
-	DateTimes      []string `json:"datetimes"` // RFC3339 list
-	Comment        string   `json:"comment"`
-	BonusUsed      int      `json:"bonus_used"`
-	NotifySMS      bool     `json:"notify_sms"`
-	NotifyTelegram bool     `json:"notify_telegram"`
+	ProcedureID    int64  `json:"procedure_id"`
+	DateTime       string `json:"datetime"` // RFC3339, начало выбранного слота
+	Comment        string `json:"comment"`
+	BonusUsed      int    `json:"bonus_used"`
+	NotifySMS      bool   `json:"notify_sms"`
+	NotifyTelegram bool   `json:"notify_telegram"`
 }
 
 func (h *BookingHandler) Create(c *gin.Context) {
@@ -44,9 +44,9 @@ func (h *BookingHandler) Create(c *gin.Context) {
 		return
 	}
 
-	dates, err := parseRFC3339List(req.DateTimes, req.DateTime)
+	slotStart, err := parseRFC3339(req.DateTime)
 	if err != nil {
-		fail(c, http.StatusBadRequest, "Некорректные даты (нужен RFC3339, например 2026-05-14T15:30:00+03:00)")
+		fail(c, http.StatusBadRequest, "Некорректная дата (нужен RFC3339, например 2026-05-14T15:30:00+03:00)")
 		return
 	}
 
@@ -54,7 +54,7 @@ func (h *BookingHandler) Create(c *gin.Context) {
 		c.Request.Context(),
 		uCtx.UserID,
 		req.ProcedureID,
-		dates,
+		slotStart,
 		req.Comment,
 		req.BonusUsed,
 		req.NotifySMS,
@@ -67,19 +67,28 @@ func (h *BookingHandler) Create(c *gin.Context) {
 	created(c, gin.H{"booking": booking, "bonus_balance": balance})
 }
 
-func parseRFC3339List(items []string, legacy string) ([]time.Time, error) {
-	if len(items) == 0 && strings.TrimSpace(legacy) != "" {
-		items = []string{legacy}
+func (h *BookingHandler) Availability(c *gin.Context) {
+	procedureID, _ := strconv.ParseInt(c.Query("procedure_id"), 10, 64)
+	if procedureID <= 0 {
+		fail(c, http.StatusBadRequest, "Укажите procedure_id")
+		return
 	}
-	out := make([]time.Time, 0, len(items))
-	for _, item := range items {
-		t, err := parseRFC3339(item)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, t)
+	from, err := parseRFC3339(c.Query("from"))
+	if err != nil {
+		fail(c, http.StatusBadRequest, "Некорректная дата from (RFC3339)")
+		return
 	}
-	return out, nil
+	to, err := parseRFC3339(c.Query("to"))
+	if err != nil {
+		fail(c, http.StatusBadRequest, "Некорректная дата to (RFC3339)")
+		return
+	}
+	days, err := h.bookings.Availability(c.Request.Context(), procedureID, from, to)
+	if err != nil {
+		handleServiceErr(c, err)
+		return
+	}
+	ok(c, days)
 }
 
 func (h *BookingHandler) ListMy(c *gin.Context) {

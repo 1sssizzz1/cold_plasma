@@ -115,6 +115,27 @@ type AdminBooking struct {
 	CreatedAt          time.Time `json:"created_at"`
 }
 
+type AdminNote struct {
+	ID        int64     `db:"id" json:"id"`
+	StartAt   time.Time `db:"start_at" json:"start_at"`
+	EndAt     time.Time `db:"end_at" json:"end_at"`
+	Title     string    `db:"title" json:"title"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
+// CalendarBooking — компактное представление записи для календаря администратора.
+type CalendarBooking struct {
+	ID             int64     `json:"id"`
+	UserName       string    `json:"user_name"`
+	UserPhone      string    `json:"user_phone"`
+	ProcedureID    int64     `json:"procedure_id"`
+	ProcedureTitle string    `json:"procedure_title"`
+	DurationMins   int       `json:"duration_mins"`
+	StartAt        time.Time `json:"start_at"`
+	EndAt          time.Time `json:"end_at"`
+	Status         string    `json:"status"`
+}
+
 type MonthlyRevenue struct {
 	PeriodStart    time.Time `json:"period_start"`
 	PeriodEnd      time.Time `json:"period_end"`
